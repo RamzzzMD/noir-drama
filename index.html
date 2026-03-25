@@ -185,8 +185,7 @@
             ? 'http://localhost:3000/api' 
             : '/api';
         
-        // ✨ Gemini API Config
-        const apiKey = "process.env.GEMINI_API_KEY"; // API key is provided by the execution environment
+        // Kunci API sekarang ditangani dengan aman di sisi backend.
 
         const app = {
             container: document.getElementById('app-content'),
@@ -220,16 +219,14 @@
                 `;
             },
 
-            // --- ✨ GEMINI API LOGICS ✨ ---
+            // --- ✨ GEMINI API LOGICS (SECURE VIA BACKEND) ✨ ---
             async fetchGeminiWithRetry(prompt, systemText) {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-                const payload = {
-                    contents: [{ parts: [{ text: prompt }] }],
-                    systemInstruction: { parts: [{ text: systemText }] }
-                };
+                // Sekarang kita menembak ke backend kita sendiri, bukan langsung ke Google
+                const url = `${API_BASE}/ai`; 
+                const payload = { prompt: prompt, systemText: systemText };
                 
                 // Exponential backoff
-                const delays = [1000, 2000, 4000, 8000, 16000];
+                const delays = [1000, 2000, 4000, 8000];
                 
                 for (let i = 0; i <= delays.length; i++) {
                     try {
@@ -238,12 +235,16 @@
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(payload)
                         });
+                        
                         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                         const data = await response.json();
-                        return data.candidates?.[0]?.content?.parts?.[0]?.text || "Maaf, saya tidak bisa memproses permintaan ini.";
+                        
+                        if (!data.success) throw new Error(data.message);
+                        
+                        return data.text;
                     } catch (e) {
                         if (i === delays.length) {
-                            return "Mohon maaf, sistem AI sedang sibuk. Silakan coba lagi nanti.";
+                            return "Mohon maaf, sistem AI sedang sibuk atau konfigurasi API Key backend belum benar.";
                         }
                         await new Promise(r => setTimeout(r, delays[i])); // Wait before retrying
                     }
