@@ -1,0 +1,12 @@
+{
+  "name": "noir-drama",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "server.js",
+  "dependencies": {
+    "axios": "^1.x.x",
+    "cheerio": "^1.0.0-rc.12",
+    "cors": "^2.8.5",
+    "express": "^4.x.x"
+  }
+}
