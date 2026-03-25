@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NOIR Drama - Stream Drama China</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- HLS.js for .m3u8 video streaming -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        black: '#0a0a0a',
+                        zinc: {
+                            900: '#18181b',
+                            800: '#27272a',
+                            700: '#3f3f46',
+                            100: '#f4f4f5'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #f4f4f5; }
+        
+        .loader {
+            border: 3px solid #27272a; border-radius: 50%; border-top: 3px solid #f4f4f5;
+            width: 40px; height: 40px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased">
+
+    <!-- Navbar -->
+    <nav class="bg-black/90 backdrop-blur-md border-b border-zinc-800 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <div class="flex-shrink-0 cursor-pointer flex items-center gap-2 group" onclick="app.goHome()">
+                    <div class="w-8 h-8 bg-white text-black flex items-center justify-center font-bold text-xl rounded group-hover:scale-105 transition">N</div>
+                    <span class="font-bold text-xl tracking-wider text-white">NOIR<span class="text-zinc-500 font-light">DRAMA</span></span>
+                </div>
+                
+                <!-- Search Bar -->
+                <div class="flex-1 max-w-md ml-8">
+                    <form id="searchForm" class="relative flex items-center" onsubmit="app.handleSearch(event)">
+                        <input type="text" id="searchInput" placeholder="Cari judul drama..." 
+                               class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-full py-2 pl-4 pr-10 focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition placeholder-zinc-500">
+                        <button type="submit" class="absolute right-3 text-zinc-400 hover:text-white transition">
+                            <i data-lucide="search" class="w-5 h-5"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main id="app-content" class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 relative">
+        <!-- Content will be injected here by JS -->
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-zinc-800 mt-auto bg-black py-8 text-center text-zinc-500 text-sm">
+        <p>&copy; 2026 NOIR Drama. Build with <i data-lucide="heart" class="w-4 h-4 inline-block text-white"></i> in Monokrom.</p>
+    </footer>
+
+    <!-- Toast Messages -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <!-- Application Logic -->
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Gunakan relative path '/api' untuk Vercel, atau localhost untuk testing lokal
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? 'http://localhost:3000/api' 
+            : '/api';
+        
+        const app = {
+            container: document.getElementById('app-content'),
+            
+            // Utility: Show Toast Notification
+            showToast(message, isError = false) {
+                const toast = document.createElement('div');
+                toast.className = `px-4 py-3 rounded shadow-lg flex items-center gap-3 fade-in ${isError ? 'bg-zinc-100 text-black font-semibold' : 'bg-zinc-800 text-white'}`;
+                toast.innerHTML = `
+                    <i data-lucide="${isError ? 'alert-circle' : 'info'}" class="w-5 h-5"></i>
+                    <span>${message}</span>
+                `;
+                document.getElementById('toast-container').appendChild(toast);
+                lucide.createIcons();
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(10px)';
+                    toast.style.transition = 'all 0.3s';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            },
+
+            // Utility: Show Loading Spinner
+            showLoading() {
+                this.container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center min-h-[50vh] text-zinc-400 gap-4">
+                        <div class="loader"></div>
+                        <p class="animate-pulse tracking-widest text-sm uppercase">Memuat Data...</p>
+                    </div>
+                `;
+            },
+
+            // Navigation
+            goHome() {
+                document.getElementById('searchInput').value = '';
+                this.loadHome();
+            },
+
+            handleSearch(e) {
+                e.preventDefault();
+                const query = document.getElementById('searchInput').value.trim();
+                if (query) this.loadSearch(query);
+            },
+
+            // --- FETCH DATA ---
+
+            async loadHome() {
+                this.showLoading();
+                try {
+                    const res = await fetch(`${API_BASE}/home`);
+                    const json = await res.json();
+                    if (!json.success) throw new Error(json.message);
+                    this.renderHome(json.data);
+                } catch (err) {
+                    this.showToast("Gagal memuat halaman utama. Pastikan server API berjalan.", true);
+                    this.container.innerHTML = this.errorTemplate("Gagal memuat halaman utama.");
+                }
+            },
+
+            async loadSearch(query) {
+                this.showLoading();
+                try {
+                    const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
+                    const json = await res.json();
+                    if (!json.success) throw new Error(json.message);
+                    this.renderSearch(query, json.data);
+                } catch (err) {
+                    this.showToast("Gagal melakukan pencarian.", true);
+                    this.container.innerHTML = this.errorTemplate("Pencarian gagal.");
+                }
+            },
+
+            async loadDetail(bookId) {
+                if (!bookId) return this.showToast("ID Drama tidak valid.", true);
+                this.showLoading();
+                try {
+                    const res = await fetch(`${API_BASE}/detail/${bookId}`);
+                    const json = await res.json();
+                    if (!json.success) throw new Error(json.message);
+                    this.renderDetail(json.data);
+                } catch (err) {
+                    this.showToast("Gagal memuat detail drama.", true);
+                    this.container.innerHTML = this.errorTemplate("Gagal memuat detail.");
+                }
+            },
+
+            async loadPlayer(bookId, episode, totalEps, title) {
+                this.showLoading();
+                try {
+                    const res = await fetch(`${API_BASE}/stream/${bookId}/${episode}`);
+                    const json = await res.json();
+                    if (!json.success) throw new Error(json.message);
+                    this.renderPlayer(json.data, title, bookId, episode, totalEps);
+                } catch (err) {
+                    this.showToast("Gagal memuat video player.", true);
+                    this.loadDetail(bookId); // fallback ke detail
+                }
+            },
+
+            // --- RENDER VIEWS ---
+
+            renderHome(data) {
+                let html = `
+                    <div class="fade-in space-y-12">
+                        <!-- Latest Section -->
+                        <section>
+                            <div class="flex items-center gap-2 mb-6">
+                                <div class="w-1 h-6 bg-white"></div>
+                                <h2 class="text-2xl font-bold uppercase tracking-wider">Terbaru</h2>
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                                ${data.latest.map(item => this.cardTemplate(item)).join('')}
+                            </div>
+                        </section>
+
+                        <!-- Trending Section -->
+                        <section>
+                            <div class="flex items-center gap-2 mb-6">
+                                <div class="w-1 h-6 bg-white"></div>
+                                <h2 class="text-2xl font-bold uppercase tracking-wider">Sedang Tren</h2>
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                                ${data.trending.map(item => this.cardTemplate(item, true)).join('')}
+                            </div>
+                        </section>
+                    </div>
+                `;
+                this.container.innerHTML = html;
+            },
+
+            renderSearch(query, results) {
+                let html = `
+                    <div class="fade-in">
+                        <div class="flex items-center justify-between mb-8">
+                            <h2 class="text-xl font-light text-zinc-400">Hasil pencarian untuk: <span class="text-white font-bold">"${query}"</span></h2>
+                            <button onclick="app.goHome()" class="text-sm px-4 py-2 border border-zinc-700 hover:bg-white hover:text-black rounded transition">Kembali</button>
+                        </div>
+                        
+                        ${results.length === 0 ? 
+                            `<div class="text-center py-20 text-zinc-500 border border-zinc-800 rounded-lg bg-zinc-900/50">Tidak ada drama yang ditemukan.</div>` 
+                            : 
+                            `<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                                ${results.map(item => this.cardTemplate(item)).join('')}
+                            </div>`
+                        }
+                    </div>
+                `;
+                this.container.innerHTML = html;
+            },
+
+            renderDetail(data) {
+                let html = `
+                    <div class="fade-in max-w-5xl mx-auto">
+                        <button onclick="app.goHome()" class="mb-6 flex items-center gap-2 text-zinc-400 hover:text-white transition group">
+                            <i data-lucide="arrow-left" class="w-4 h-4 group-hover:-translate-x-1 transition"></i> Kembali
+                        </button>
+                        
+                        <div class="flex flex-col md:flex-row gap-8 bg-zinc-900 p-6 rounded-xl border border-zinc-800">
+                            <!-- Poster -->
+                            <div class="w-full md:w-1/3 flex-shrink-0">
+                                <img src="${data.thumbnail}" alt="${data.title}" class="w-full rounded-lg shadow-2xl object-cover aspect-[3/4]">
+                            </div>
+                            
+                            <!-- Info -->
+                            <div class="flex-col flex flex-1">
+                                <h1 class="text-3xl md:text-5xl font-bold mb-4 leading-tight">${data.title}</h1>
+                                
+                                <div class="flex flex-wrap items-center gap-4 text-sm text-zinc-400 mb-6 font-mono">
+                                    <span class="flex items-center gap-1 bg-black px-3 py-1 rounded border border-zinc-800">
+                                        <i data-lucide="list-video" class="w-4 h-4"></i> ${data.stats.total_episodes} Episode
+                                    </span>
+                                    ${data.stats.followers ? `
+                                    <span class="flex items-center gap-1 bg-black px-3 py-1 rounded border border-zinc-800">
+                                        <i data-lucide="users" class="w-4 h-4"></i> ${data.stats.followers} Pengikut
+                                    </span>` : ''}
+                                </div>
+                                
+                                <div class="mb-8">
+                                    <h3 class="text-sm uppercase tracking-wider text-zinc-500 mb-2 font-semibold">Sinopsis</h3>
+                                    <p class="text-zinc-300 leading-relaxed text-sm md:text-base">${data.description || 'Tidak ada deskripsi tersedia.'}</p>
+                                </div>
+                                
+                                <!-- Episodes Grid -->
+                                <div class="mt-auto border-t border-zinc-800 pt-6">
+                                    <h3 class="text-sm uppercase tracking-wider text-zinc-500 mb-4 font-semibold">Pilih Episode</h3>
+                                    <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 max-h-64 overflow-y-auto pr-2 pb-2">
+                                        ${data.episode_list.map(ep => `
+                                            <button onclick="app.loadPlayer('${data.book_id}', ${ep.episode}, ${data.episode_list.length}, '${data.title.replace(/'/g, "\\'")}')" 
+                                                    class="py-2 text-center rounded border border-zinc-700 bg-black hover:bg-white hover:text-black transition text-sm font-medium">
+                                                ${ep.episode}
+                                            </button>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                this.container.innerHTML = html;
+                lucide.createIcons();
+            },
+
+            renderPlayer(data, title, bookId, currentEpisode, totalEps) {
+                // Find best quality or default
+                let bestVideo = data.videos.find(v => v.quality === '1080p') || 
+                                data.videos.find(v => v.quality === '720p') || 
+                                data.videos[0];
+                                
+                if (!bestVideo) {
+                    this.showToast("URL Video tidak ditemukan.", true);
+                    return this.loadDetail(bookId);
+                }
+
+                let html = `
+                    <div class="fade-in max-w-5xl mx-auto">
+                        <div class="flex items-center justify-between mb-4">
+                            <button onclick="app.loadDetail('${bookId}')" class="flex items-center gap-2 text-zinc-400 hover:text-white transition group">
+                                <i data-lucide="arrow-left" class="w-4 h-4 group-hover:-translate-x-1 transition"></i> Kembali ke Judul
+                            </button>
+                            <h2 class="text-xl font-bold truncate max-w-md">${title} - Ep ${currentEpisode}</h2>
+                        </div>
+
+                        <!-- Player Container -->
+                        <div class="bg-black border border-zinc-800 rounded-xl overflow-hidden shadow-2xl aspect-video relative">
+                            <video id="hls-video" controls class="w-full h-full object-contain" poster=""></video>
+                        </div>
+                        
+                        <!-- Navigation & Qualities -->
+                        <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-zinc-900 p-4 rounded-xl border border-zinc-800">
+                            <div class="flex gap-2">
+                                ${currentEpisode > 1 ? `
+                                    <button onclick="app.loadPlayer('${bookId}', ${currentEpisode - 1}, ${totalEps}, '${title.replace(/'/g, "\\'")}')" 
+                                            class="px-4 py-2 bg-black border border-zinc-700 rounded hover:bg-white hover:text-black transition text-sm flex items-center gap-2">
+                                        <i data-lucide="chevron-left" class="w-4 h-4"></i> Sebelumnya
+                                    </button>
+                                ` : `<div class="px-4 py-2 border border-transparent"></div>`}
+                            </div>
+                            
+                            <div class="flex items-center gap-3 text-sm">
+                                <span class="text-zinc-500"><i data-lucide="settings" class="w-4 h-4 inline"></i> Kualitas:</span>
+                                <div class="flex gap-2 bg-black p-1 rounded border border-zinc-800">
+                                    ${data.videos.map(v => `
+                                        <button onclick="app.switchQuality('${v.url}')" 
+                                                class="px-3 py-1 rounded text-xs transition ${v.quality === bestVideo.quality ? 'bg-white text-black font-bold' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}">
+                                            ${v.quality}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-2">
+                                ${currentEpisode < totalEps ? `
+                                    <button onclick="app.loadPlayer('${bookId}', ${currentEpisode + 1}, ${totalEps}, '${title.replace(/'/g, "\\'")}')" 
+                                            class="px-4 py-2 bg-black border border-zinc-700 rounded hover:bg-white hover:text-black transition text-sm flex items-center gap-2">
+                                        Selanjutnya <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                                    </button>
+                                ` : `<div class="px-4 py-2 border border-transparent"></div>`}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                this.container.innerHTML = html;
+                lucide.createIcons();
+                this.initHlsPlayer(bestVideo.url);
+            },
+
+            // --- COMPONENTS & UTILS ---
+
+            cardTemplate(item, isTrending = false) {
+                return `
+                    <div class="group cursor-pointer relative rounded-lg overflow-hidden border border-zinc-800 bg-zinc-900 transition hover:border-zinc-500 hover:shadow-xl hover:shadow-white/5" 
+                         onclick="app.loadDetail('${item.book_id}')">
+                        <div class="aspect-[3/4] relative overflow-hidden bg-zinc-800">
+                            <img src="${item.image}" alt="${item.title}" class="w-full h-full object-cover transition duration-500 group-hover:scale-105 group-hover:opacity-80" loading="lazy">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80"></div>
+                            
+                            ${isTrending ? `
+                                <div class="absolute top-2 left-2 bg-white text-black text-xs font-bold w-8 h-8 flex items-center justify-center rounded-full shadow">
+                                    #${item.rank}
+                                </div>
+                            ` : ''}
+                            
+                            <div class="absolute bottom-2 left-2 right-2 flex justify-between items-end">
+                                <span class="bg-black/60 backdrop-blur px-2 py-1 rounded text-xs font-mono border border-zinc-700">
+                                    Ep ${item.episodes || item.views || '?'}
+                                </span>
+                                <div class="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+                                    <i data-lucide="play" class="w-4 h-4 ml-0.5"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-3">
+                            <h3 class="font-semibold text-sm line-clamp-2 leading-tight group-hover:text-white text-zinc-200 transition">${item.title}</h3>
+                        </div>
+                    </div>
+                `;
+            },
+
+            errorTemplate(msg) {
+                return `
+                    <div class="flex flex-col items-center justify-center min-h-[50vh] text-center max-w-md mx-auto fade-in">
+                        <div class="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mb-6 border border-zinc-800">
+                            <i data-lucide="x-circle" class="w-8 h-8 text-zinc-500"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold mb-2">Terjadi Kesalahan</h2>
+                        <p class="text-zinc-400 mb-8">${msg}</p>
+                        <button onclick="app.goHome()" class="px-6 py-2 bg-white text-black font-semibold rounded hover:bg-zinc-200 transition">
+                            Coba Lagi
+                        </button>
+                    </div>
+                `;
+            },
+
+            initHlsPlayer(videoSrc) {
+                const video = document.getElementById('hls-video');
+                
+                if (Hls.isSupported()) {
+                    if(this.hlsInstance) this.hlsInstance.destroy();
+                    this.hlsInstance = new Hls();
+                    this.hlsInstance.loadSource(videoSrc);
+                    this.hlsInstance.attachMedia(video);
+                    this.hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+                        video.play().catch(e => console.log("Auto-play prevented by browser."));
+                    });
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    // For Safari
+                    video.src = videoSrc;
+                    video.addEventListener('loadedmetadata', function() {
+                        video.play().catch(e => console.log("Auto-play prevented by browser."));
+                    });
+                } else {
+                    this.showToast("Browser Anda tidak mendukung format video ini.", true);
+                }
+            },
+            
+            switchQuality(url) {
+                this.showToast("Mengubah kualitas video...");
+                this.initHlsPlayer(url);
+            }
+        };
+
+        // Initialize App
+        window.onload = () => {
+            app.loadHome();
+        };
+    </script>
+</body>
+</html>
