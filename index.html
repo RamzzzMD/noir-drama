@@ -46,9 +46,14 @@
         
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* AI Message Styling */
+        .ai-message b { color: #ffffff; }
+        .ai-message ul { list-style-type: disc; margin-left: 1rem; margin-top: 0.5rem; margin-bottom: 0.5rem;}
+        .ai-message li { margin-bottom: 0.25rem; }
     </style>
 </head>
-<body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased">
+<body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased relative">
 
     <!-- Navbar -->
     <nav class="bg-black/90 backdrop-blur-md border-b border-zinc-800 sticky top-0 z-50">
@@ -80,12 +85,95 @@
     </main>
 
     <!-- Footer -->
-    <footer class="border-t border-zinc-800 mt-auto bg-black py-8 text-center text-zinc-500 text-sm">
-        <p>&copy; 2026 NOIR Drama. Build with <i data-lucide="heart" class="w-4 h-4 inline-block text-white"></i> in Monokrom.</p>
+    <footer class="border-t border-zinc-800 mt-auto bg-black py-10 text-center text-zinc-500 text-sm">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col items-center gap-8">
+            <!-- Kontak & Donasi -->
+            <div class="flex flex-wrap justify-center items-center gap-4 sm:gap-8">
+                <a href="https://wa.me/6281214300828" target="_blank" class="flex items-center gap-2 hover:text-white transition group">
+                    <span class="p-2 bg-zinc-900 rounded-full border border-zinc-800 group-hover:border-zinc-500 group-hover:bg-zinc-800 transition">
+                        <i data-lucide="message-circle" class="w-4 h-4 text-green-500 group-hover:text-green-400 transition"></i>
+                    </span>
+                    <span class="font-medium">WhatsApp</span>
+                </a>
+                <a href="https://t.me/cangcuthideung" target="_blank" class="flex items-center gap-2 hover:text-white transition group">
+                    <span class="p-2 bg-zinc-900 rounded-full border border-zinc-800 group-hover:border-zinc-500 group-hover:bg-zinc-800 transition">
+                        <i data-lucide="send" class="w-4 h-4 text-blue-400 group-hover:text-blue-300 transition"></i>
+                    </span>
+                    <span class="font-medium">Telegram</span>
+                </a>
+                <button onclick="app.showDonationModal()" class="flex items-center gap-2 text-zinc-300 hover:text-white transition group">
+                    <span class="p-2 bg-zinc-900 rounded-full border border-zinc-800 group-hover:border-zinc-500 group-hover:bg-white transition group-hover:text-black">
+                        <i data-lucide="qr-code" class="w-4 h-4"></i>
+                    </span>
+                    <span class="font-medium">Donasi QRIS</span>
+                </button>
+            </div>
+
+            <!-- Copyright -->
+            <p>&copy; 2026 NOIR Drama. Build with <i data-lucide="heart" class="w-4 h-4 inline-block text-white"></i> in Monokrom.</p>
+        </div>
     </footer>
 
+    <!-- QRIS Modal -->
+    <div id="qris-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 opacity-0 transition-opacity duration-300" onclick="app.hideDonationModal()">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 max-w-sm w-full text-center relative shadow-2xl scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
+            <button onclick="app.hideDonationModal()" class="absolute top-4 right-4 text-zinc-500 hover:text-white transition bg-black rounded-full p-1 border border-zinc-800 hover:border-zinc-500">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+            <div class="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="qr-code" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2">Dukung Server Kami</h3>
+            <p class="text-sm text-zinc-400 mb-6">Scan QR Code di bawah menggunakan aplikasi E-Wallet atau M-Banking Anda.</p>
+            
+            <div class="bg-white p-4 rounded-xl inline-block mb-6 border-4 border-zinc-800">
+                <img src="https://raw.githubusercontent.com/kamdjut-ui/uploader/main/uploads/1774422790644_QRIS.jpeg" alt="QRIS Donasi" class="w-48 h-48 object-contain">
+            </div>
+            
+            <p class="text-xs text-zinc-500 font-mono">Setiap donasi sangat membantu kelangsungan website ini. Terima kasih! 🖤</p>
+        </div>
+    </div>
+
+    <!-- ✨ AI Chat Floating Button & Window ✨ -->
+    <div class="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-4">
+        <!-- Chat Window -->
+        <div id="ai-chat-window" class="w-80 sm:w-96 bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl flex-col hidden overflow-hidden scale-95 opacity-0 origin-bottom-right transition-all duration-300">
+            <!-- Header -->
+            <div class="bg-black px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">✨</span>
+                    <div>
+                        <h4 class="font-bold text-white text-sm">Asisten AI NOIR</h4>
+                        <p class="text-[10px] text-zinc-500">Diberdayakan oleh Gemini API</p>
+                    </div>
+                </div>
+                <button onclick="app.toggleAIChat()" class="text-zinc-500 hover:text-white transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <!-- Body -->
+            <div id="ai-chat-body" class="p-4 h-80 overflow-y-auto flex flex-col gap-3 text-sm bg-zinc-900/50">
+                <div class="bg-zinc-800/50 text-zinc-300 p-3 rounded-xl rounded-tl-sm self-start max-w-[85%] border border-zinc-700/50">
+                    Halo! Saya asisten AI untuk NOIR Drama. Ada yang bisa saya bantu? Sedang cari rekomendasi genre spesifik? ✨
+                </div>
+            </div>
+            <!-- Input -->
+            <form id="ai-chat-form" onsubmit="app.handleAIChatSubmit(event)" class="p-3 bg-black border-t border-zinc-800 flex gap-2">
+                <input type="text" id="ai-chat-input" placeholder="Tanya sesuatu..." class="flex-1 bg-zinc-900 border border-zinc-700 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition">
+                <button type="submit" class="bg-white text-black w-10 h-10 rounded-full flex items-center justify-center hover:bg-zinc-200 transition">
+                    <i data-lucide="send" class="w-4 h-4"></i>
+                </button>
+            </form>
+        </div>
+
+        <!-- Floating Button -->
+        <button onclick="app.toggleAIChat()" class="w-14 h-14 bg-white text-black rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition hover:shadow-white/20">
+            <span class="text-2xl">✨</span>
+        </button>
+    </div>
+
     <!-- Toast Messages -->
-    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
     <!-- Application Logic -->
     <script>
@@ -97,8 +185,12 @@
             ? 'http://localhost:3000/api' 
             : '/api';
         
+        // ✨ Gemini API Config
+        const apiKey = ""; // API key is provided by the execution environment
+
         const app = {
             container: document.getElementById('app-content'),
+            isChatOpen: false,
             
             // Utility: Show Toast Notification
             showToast(message, isError = false) {
@@ -126,6 +218,142 @@
                         <p class="animate-pulse tracking-widest text-sm uppercase">Memuat Data...</p>
                     </div>
                 `;
+            },
+
+            // --- ✨ GEMINI API LOGICS ✨ ---
+            async fetchGeminiWithRetry(prompt, systemText) {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                const payload = {
+                    contents: [{ parts: [{ text: prompt }] }],
+                    systemInstruction: { parts: [{ text: systemText }] }
+                };
+                
+                // Exponential backoff
+                const delays = [1000, 2000, 4000, 8000, 16000];
+                
+                for (let i = 0; i <= delays.length; i++) {
+                    try {
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                        const data = await response.json();
+                        return data.candidates?.[0]?.content?.parts?.[0]?.text || "Maaf, saya tidak bisa memproses permintaan ini.";
+                    } catch (e) {
+                        if (i === delays.length) {
+                            return "Mohon maaf, sistem AI sedang sibuk. Silakan coba lagi nanti.";
+                        }
+                        await new Promise(r => setTimeout(r, delays[i])); // Wait before retrying
+                    }
+                }
+            },
+
+            // AI Chat Features
+            toggleAIChat() {
+                const chatWindow = document.getElementById('ai-chat-window');
+                this.isChatOpen = !this.isChatOpen;
+                if (this.isChatOpen) {
+                    chatWindow.classList.remove('hidden');
+                    void chatWindow.offsetWidth; // trigger reflow
+                    chatWindow.classList.remove('opacity-0', 'scale-95');
+                    chatWindow.classList.add('flex');
+                    document.getElementById('ai-chat-input').focus();
+                } else {
+                    chatWindow.classList.add('opacity-0', 'scale-95');
+                    setTimeout(() => {
+                        chatWindow.classList.add('hidden');
+                        chatWindow.classList.remove('flex');
+                    }, 300);
+                }
+            },
+
+            appendChatMessage(text, isUser = false) {
+                const body = document.getElementById('ai-chat-body');
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `p-3 rounded-xl max-w-[85%] border ai-message ${isUser 
+                    ? 'bg-white text-black rounded-tr-sm self-end border-zinc-200' 
+                    : 'bg-zinc-800/50 text-zinc-300 rounded-tl-sm self-start border-zinc-700/50'}`;
+                
+                // Parse simple bold/lists if AI sends them
+                if (!isUser) {
+                    msgDiv.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\n/g, '<li>$1</li>');
+                } else {
+                    msgDiv.innerText = text;
+                }
+
+                body.appendChild(msgDiv);
+                body.scrollTop = body.scrollHeight;
+            },
+
+            async handleAIChatSubmit(e) {
+                e.preventDefault();
+                const input = document.getElementById('ai-chat-input');
+                const text = input.value.trim();
+                if (!text) return;
+
+                // User message
+                this.appendChatMessage(text, true);
+                input.value = '';
+                input.disabled = true;
+
+                // Show loading bubble
+                const body = document.getElementById('ai-chat-body');
+                const loadingDiv = document.createElement('div');
+                loadingDiv.id = 'ai-typing';
+                loadingDiv.className = 'bg-zinc-800/50 text-zinc-400 p-3 rounded-xl rounded-tl-sm self-start border border-zinc-700/50 flex items-center gap-2 text-xs';
+                loadingDiv.innerHTML = '<div class="loader !w-3 !h-3 !border-2 !border-zinc-500 !border-t-white"></div> AI sedang mengetik...';
+                body.appendChild(loadingDiv);
+                body.scrollTop = body.scrollHeight;
+
+                const systemInstruction = "Anda adalah Asisten AI ramah untuk platform streaming 'NOIR Drama' yang mengkhususkan diri pada drama pendek (Short Drama) khas China. Gunakan bahasa Indonesia yang santai, gaul tapi tetap sopan. Anda bisa memberikan rekomendasi, mendiskusikan klise/trope (seperti CEO, reinkarnasi, balas dendam). Berikan respons yang ringkas dan jangan bertele-tele.";
+                const response = await this.fetchGeminiWithRetry(text, systemInstruction);
+
+                document.getElementById('ai-typing').remove();
+                this.appendChatMessage(response, false);
+                input.disabled = false;
+                input.focus();
+            },
+
+            // AI Detail Page Analyzer
+            async analyzeDrama(title, desc) {
+                const resultDiv = document.getElementById('ai-analysis-result');
+                const btn = document.getElementById('btn-analyze-ai');
+                
+                btn.disabled = true;
+                btn.innerHTML = `<div class="loader !w-3 !h-3 !border-[1.5px] !border-zinc-500 !border-t-white"></div> Memproses...`;
+                
+                resultDiv.classList.remove('hidden');
+                resultDiv.innerHTML = `<div class="flex items-center gap-2 animate-pulse"><div class="loader !w-4 !h-4 !border-2"></div> Menganalisis judul dan sinopsis dengan Gemini AI...</div>`;
+                
+                const prompt = `Judul: ${title}\nSinopsis: ${desc}\n\nBerikan 3-5 tag/trope utama dari drama ini (format bullet points). Lalu berikan ringkasan 2 kalimat yang sangat menarik dan membuat orang penasaran untuk menontonnya.`;
+                const systemText = "Anda adalah pengulas drama profesional. Berikan respon dalam HTML sederhana. Gunakan <ul><li> untuk trope dan <p class='mt-3 italic'> untuk ringkasan. Gunakan bahasa Indonesia yang menarik.";
+                
+                const response = await this.fetchGeminiWithRetry(prompt, systemText);
+                
+                resultDiv.innerHTML = `<div class="mb-3 text-white font-bold flex items-center gap-2 border-b border-zinc-800 pb-2">✨ Analisis AI Gemini</div><div class="ai-message text-sm text-zinc-300 leading-relaxed">${response}</div>`;
+                btn.classList.add('hidden'); // Sembunyikan tombol setelah dianalisis
+            },
+
+            // --- Modal Logics ---
+            showDonationModal() {
+                const modal = document.getElementById('qris-modal');
+                const modalContent = modal.querySelector('div');
+                modal.classList.remove('hidden');
+                void modal.offsetWidth;
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+            },
+
+            hideDonationModal() {
+                const modal = document.getElementById('qris-modal');
+                const modalContent = modal.querySelector('div');
+                modal.classList.add('opacity-0');
+                modalContent.classList.add('scale-95');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                }, 300);
             },
 
             // Navigation
@@ -253,20 +481,29 @@
             },
 
             renderDetail(data) {
+                // Prepare safe strings for JS function call
+                const safeTitle = data.title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                const safeDesc = data.description 
+                    ? data.description.replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, " ") 
+                    : "Tidak ada deskripsi";
+
                 let html = `
                     <div class="fade-in max-w-5xl mx-auto">
                         <button onclick="app.goHome()" class="mb-6 flex items-center gap-2 text-zinc-400 hover:text-white transition group">
                             <i data-lucide="arrow-left" class="w-4 h-4 group-hover:-translate-x-1 transition"></i> Kembali
                         </button>
                         
-                        <div class="flex flex-col md:flex-row gap-8 bg-zinc-900 p-6 rounded-xl border border-zinc-800">
+                        <div class="flex flex-col md:flex-row gap-8 bg-zinc-900 p-6 rounded-xl border border-zinc-800 relative overflow-hidden">
+                            <!-- Subtle AI Glow background effect -->
+                            <div class="absolute -top-20 -right-20 w-64 h-64 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
+
                             <!-- Poster -->
-                            <div class="w-full md:w-1/3 flex-shrink-0">
+                            <div class="w-full md:w-1/3 flex-shrink-0 relative z-10">
                                 <img src="${data.thumbnail}" alt="${data.title}" class="w-full rounded-lg shadow-2xl object-cover aspect-[3/4]">
                             </div>
                             
                             <!-- Info -->
-                            <div class="flex-col flex flex-1">
+                            <div class="flex-col flex flex-1 relative z-10">
                                 <h1 class="text-3xl md:text-5xl font-bold mb-4 leading-tight">${data.title}</h1>
                                 
                                 <div class="flex flex-wrap items-center gap-4 text-sm text-zinc-400 mb-6 font-mono">
@@ -280,8 +517,17 @@
                                 </div>
                                 
                                 <div class="mb-8">
-                                    <h3 class="text-sm uppercase tracking-wider text-zinc-500 mb-2 font-semibold">Sinopsis</h3>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <h3 class="text-sm uppercase tracking-wider text-zinc-500 font-semibold">Sinopsis</h3>
+                                        <!-- ✨ AI Button ✨ -->
+                                        <button id="btn-analyze-ai" onclick="app.analyzeDrama('${safeTitle}', '${safeDesc}')" class="text-xs font-semibold bg-zinc-800 hover:bg-white hover:text-black transition px-3 py-1.5 rounded flex items-center gap-1.5 border border-zinc-700 hover:border-white group">
+                                            <span class="group-hover:animate-bounce">✨</span> Ekstrak AI
+                                        </button>
+                                    </div>
                                     <p class="text-zinc-300 leading-relaxed text-sm md:text-base">${data.description || 'Tidak ada deskripsi tersedia.'}</p>
+                                    
+                                    <!-- AI Result Container -->
+                                    <div id="ai-analysis-result" class="mt-4 hidden bg-black/50 border border-zinc-800/80 p-5 rounded-xl text-sm shadow-inner backdrop-blur-sm"></div>
                                 </div>
                                 
                                 <!-- Episodes Grid -->
@@ -289,7 +535,7 @@
                                     <h3 class="text-sm uppercase tracking-wider text-zinc-500 mb-4 font-semibold">Pilih Episode</h3>
                                     <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 max-h-64 overflow-y-auto pr-2 pb-2">
                                         ${data.episode_list.map(ep => `
-                                            <button onclick="app.loadPlayer('${data.book_id}', ${ep.episode}, ${data.episode_list.length}, '${data.title.replace(/'/g, "\\'")}')" 
+                                            <button onclick="app.loadPlayer('${data.book_id}', ${ep.episode}, ${data.episode_list.length}, '${safeTitle}')" 
                                                     class="py-2 text-center rounded border border-zinc-700 bg-black hover:bg-white hover:text-black transition text-sm font-medium">
                                                 ${ep.episode}
                                             </button>
