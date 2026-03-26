@@ -2,9 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import dotenv from 'dotenv'; // <-- Tambahkan baris ini
-
-dotenv.config(); // <-- Tambahkan baris ini untuk membaca file .env
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -251,24 +248,22 @@ app.post('/api/ai', async (req, res) => {
     try {
         const { prompt, systemText } = req.body;
         
-        // Mengambil kunci rahasia dari environment
-        const apiKey = process.env.GEMINI_API_KEY;
+        // Menggabungkan instruksi sistem dengan prompt karena API ini hanya menerima satu parameter prompt
+        const fullPrompt = systemText 
+            ? `[Instruksi Sistem: ${systemText}]\n\nPertanyaan pengguna: ${prompt}` 
+            : prompt;
 
-        if (!apiKey) {
-            return res.status(500).json({ success: false, message: "API Key tidak dikonfigurasi di server backend." });
-        }
-
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        const url = 'https://apii.ranzzajaah.my.id/api/ai/gemini-v2';
         const payload = {
-            contents: [{ parts: [{ text: prompt }] }],
-            systemInstruction: { parts: [{ text: systemText }] }
+            prompt: fullPrompt
         };
 
         const response = await axios.post(url, payload, {
             headers: { 'Content-Type': 'application/json' }
         });
 
-        const text = response.data.candidates?.[0]?.content?.parts?.[0]?.text || "Maaf, tidak ada respon dari AI.";
+        // Mengambil teks jawaban berdasarkan struktur respon dari API baru
+        const text = response.data?.result?.answer || "Maaf, tidak ada respon dari AI.";
         res.status(200).json({ success: true, text });
     } catch (error) {
         console.error("Gemini Backend Error:", error.response?.data || error.message);
